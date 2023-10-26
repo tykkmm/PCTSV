@@ -1,0 +1,372 @@
+import requests
+import json
+import re
+import base64
+import pyperclip
+from pywidevine.L3.cdm import cdm, deviceconfig
+from base64 import b64encode
+from pywidevine.L3.getPSSH import get_pssh
+from pywidevine.L3.decrypt.wvdecryptcustom import WvDecrypt
+import subprocess
+from pathlib import Path
+import os
+import urllib.parse
+from scraperplusimdb import modified_show_name
+from scraperplusimdb import season_num
+showName = modified_show_name
+season_num = season_num
+
+indexz = 1
+
+def check_file(cleaned_show_name):
+    directory_path = "/Users/swapnilupadhyay/Downloads/WKS-KEYS"
+    file_name = f'{showName} - {show_name}' + "_with_subtitles.mkv"
+
+    # Check if the file exists in the specified directory
+    file_path = os.path.join(directory_path, file_name)
+
+    if os.path.exists(file_path):
+        print(f"The file '{file_name}' already exists. Skipping the download.")
+        return True
+    else:
+        print(f"The file '{file_name}' does not exist. You can download it here.")
+        return False
+
+
+def give_link(cleaned_numeric_value, cleaned_show_name):
+    global indexz
+    m3u8DL_RE = 'N_m3u8DL-RE'
+
+    cookies = {
+        'afUserId': '6e27cc43-0311-496a-9a43-89c70c7a4296-p',
+        'WZRK_G': '6165a85d90ca4633a26d2b466f4aa62d',
+        'AKA_A2': 'A',
+        '_abck': '831DFEB23D01C22721BE543E374FE840~0~YAAQhPzUF4N4LjiLAQAA7ckOSApLUWl0TIlupacyK5DWrzQ9ZjMTSziFGCGsW3K0NT+mPqAwfWztOOm0K+5lES2FUeihe1+N97oFFv0v6ldZhlFzYkpe5lvflCxQU9LzUMP9bAz19xXhi7Sb4l5QB7ydCE7KMLyICV2yspqa1aXleO7nLzVR2ZkF9VMf9Y320oluwStnap3HG4SYheAyx592+hwrz4RtEFUXBfzOSOPeKKiYpOeTxc9STZXrpTQV5W4IXOfimtlpvrKwZM/tj2CbPgCZe9C3YI1BWMe1UgHJfu7Lkb/6X3CMf6+/3+E0eeDe7/IslbmpYglxtkFd1Djq9bOYiGsN4THORYxz3E1xnTQbJ9XWB2CjxnM/wqEm6oa3oLWj3O61wvSKwxbkBnYnNctog8ciDdoHKSb6~-1~-1~-1',
+        'ak_bmsc': 'C2F15BA06BC8C08F17D37A41F59C5D64~000000000000000000000000000000~YAAQhPzUF4R4LjiLAQAA7ckOSBUogS5NTQmS9u1W0oeVcMu9w4UD6rYdnyoSJCN2bPp8iMmTZMUWCJHJoRMxyJvRM7hlaZjW87erAtWCQD+E3exiMqDQCiCpJbmwY3tjUyAivIFJVec7axF7DgaTTVxlAYWji9TeMZhJU3HH5NNJ5/t6QXk0H44bCAWnlxb9kEocbGENsjBa1Rgs6yH/VKD4DRjsf/slyyaH+MyZmRvJqUXKvVzcW9aYk9JjNHQZJF27X/wVacX8C1dKEm8Je0gehDORNleOxMHsyPaRZ9w35wo3dDy5naAIaZj1IhxtIkGOzMefy3SgHtBC4CkfSB3fxF9Xk63uvVM+V23y8rb+AJrv58+d4eY+vEO5gme4xvK03Tc1u38cXns=',
+        'bm_sz': '40129E9E26E82897190AA95134658168~YAAQhPzUF4Z4LjiLAQAA7ckOSBWtm6ALOXNVGDzHvHCWlSMq8Lp/skFZLDVN5iLPnIvS+5uniCHllhhjU1I9mCLzz+nBjnXZblew2h2p4FfAlt53CVcBC8ZuhXQNxSB/SKVTEG0aPMzvYVxBG/gHF3bES1RALD5z5SS6Ob2qPrJWGTCrZgsXorYiBr6Htrshq4cB0gifyqqgbYfBjGWWtDqjh5hOt630kP2KHe/GWqXLUGxVOQrmJLdU5KlT77JIpjOEo/fLwIsg24fDH+JS3eq7OEjqYkWKrF18phn9vpru1A1s~4405315~4407865',
+        'sessionId': '5ee39dfd88ba43fa9810496740154a77-Mozilla%2F5.0%2C(Macintosh%3B%2CIntel%2CMac%2COS%2CX%2C10_15_7)%2CAppleWebKit%2F537.36%2C(KHTML%2C%2Clike%2CGecko)%2CChrome%2F118.0.0.0%2CSafari%2F537.36',
+        'bm_mi': 'B221B7DC2C96C5EB0BC95F16F82657B7~YAAQZv3UF+JxRB+LAQAA8NQYSBX9fbcjPIYdU++4mfcx80I4bGKCL0/4q43QYuZZ/waILGltMCcdQrwgmF2YQirgVkP5gaDoFJPmbPjRn+qRLHDDVcviiXs8M42kUNxxdoRKvBfjVopcmrr22a8NET4SKZfijqb6srh/MBccq3gUe12kpZG8RmTGT0N8kNuTd19kj9pVuDve0/wUiyC4CHkUWtlpPVqR5jExPiGEXCY+BNgVoW6bI3iz3eBlkSHOznsvBpWXnrRtfYSmWeARP6F9UJitkCYUeArN6eUwx+gnQQTEEoV0/qtVAQ+Y5UaiMZEdtGutZLjHKTBTLE5dPjuZqZN1u0cmv49LTLOhgIU/JfaTLtI6jl7dbRzgDl5376ktPjiVEaSkqN5tnSTJWoTXmEGZyg==~1',
+        'bm_sv': '8A98A435E18C0C60611FF0505B5CD8F8~YAAQZv3UF2xyRB+LAQAA9OMYSBU2PWIIc+ZHlqCJA47hUABxa6hxgh1Ue7B6yQIU9yHaSDYEbzSSBsZ0aF/3CrUXK/YjgijHiL4shGrtPsLVS4VaAi3KpxKuL4sPzyZHSYwpDCbHVVaBUJuSL6BkenucOfg1S7XKLLlCd8cWdUAhAPJoW32l0YYaZNgk0jVidKSg30yIfeyCnwM6MAmvNCzbJd+PDu3QfoAfNlULYQAWaecWy5gZyvKyuwaZbVi2sas=~1',
+    }
+
+    headers = {
+        'authority': 'apiv2.sonyliv.com',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7',
+        'app_version': '3.5.28',
+        'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxODA3MDMyMDQ0NjE1ODkyMTEiLCJ0b2tlbiI6IlpndXItOVA1Ui0zNG90LThvWnktdFNaWS1RS0oyLVpKIiwiZXhwaXJhdGlvbk1vbWVudCI6IjIwMjQtMDctMzFUMTU6Mzc6MTYuODAxWiIsImlzUHJvZmlsZUNvbXBsZXRlIjp0cnVlLCJzZXNzaW9uQ3JlYXRpb25UaW1lIjoiMjAyMy0wOC0wMVQxNTozNzoxNi44MDFaIiwiY2hhbm5lbFBhcnRuZXJJRCI6Ik1TTUlORCIsImZpcnN0TmFtZSI6IkFyaXNoIiwibW9iaWxlTnVtYmVyIjoiNjUxNDQ3OTEyIiwiZGF0ZU9mQmlydGgiOjc2MjkwODQwMDAwMCwiZ2VuZGVyIjoiTWFsZSIsInByb2ZpbGVQaWMiOiIiLCJzb2NpYWxQcm9maWxlUGljIjoiaHR0cHM6Ly9wbGF0Zm9ybS1sb29rYXNpZGUuZmJzYnguY29tL3BsYXRmb3JtL3Byb2ZpbGVwaWMvP2FzaWQ9MTAyMTQ1NDU0NjQzODM4OTQmaGVpZ2h0PTUwJndpZHRoPTUwJmV4dD0xNjc0NDA1OTYwJmhhc2g9QWVRdkNMRUlucFlGMXFyR3NpcyIsInNvY2lhbExvZ2luSUQiOiJmYWNlYm9va18xMDIxNDU0NTQ2NDM4Mzg5NCIsInNvY2lhbExvZ2luVHlwZSI6IkZhY2Vib29rIiwiaXNFbWFpbFZlcmlmaWVkIjp0cnVlLCJpc01vYmlsZVZlcmlmaWVkIjpmYWxzZSwibGFzdE5hbWUiOiJBbmFuZCIsImVtYWlsIjoiYXJpc2gucmFtc2FyYW5AaG90bWFpbC5ubCIsImlzQ3VzdG9tZXJFbGlnaWJsZUZvckZyZWVUcmlhbCI6ZmFsc2UsImNvbnRhY3RJRCI6IjYxNTkxNzg1IiwiaWF0IjoxNjkwOTA0MjM2LCJleHAiOjE3MjI0NDAyMzZ9.05zmkBaXsTHgIqd9u534Hr8B4WnkB_mb1EuRkjFm6js',
+        'content-type': 'application/json',
+        # 'cookie': 'afUserId=6e27cc43-0311-496a-9a43-89c70c7a4296-p; WZRK_G=6165a85d90ca4633a26d2b466f4aa62d; AKA_A2=A; _abck=831DFEB23D01C22721BE543E374FE840~0~YAAQhPzUF4N4LjiLAQAA7ckOSApLUWl0TIlupacyK5DWrzQ9ZjMTSziFGCGsW3K0NT+mPqAwfWztOOm0K+5lES2FUeihe1+N97oFFv0v6ldZhlFzYkpe5lvflCxQU9LzUMP9bAz19xXhi7Sb4l5QB7ydCE7KMLyICV2yspqa1aXleO7nLzVR2ZkF9VMf9Y320oluwStnap3HG4SYheAyx592+hwrz4RtEFUXBfzOSOPeKKiYpOeTxc9STZXrpTQV5W4IXOfimtlpvrKwZM/tj2CbPgCZe9C3YI1BWMe1UgHJfu7Lkb/6X3CMf6+/3+E0eeDe7/IslbmpYglxtkFd1Djq9bOYiGsN4THORYxz3E1xnTQbJ9XWB2CjxnM/wqEm6oa3oLWj3O61wvSKwxbkBnYnNctog8ciDdoHKSb6~-1~-1~-1; ak_bmsc=C2F15BA06BC8C08F17D37A41F59C5D64~000000000000000000000000000000~YAAQhPzUF4R4LjiLAQAA7ckOSBUogS5NTQmS9u1W0oeVcMu9w4UD6rYdnyoSJCN2bPp8iMmTZMUWCJHJoRMxyJvRM7hlaZjW87erAtWCQD+E3exiMqDQCiCpJbmwY3tjUyAivIFJVec7axF7DgaTTVxlAYWji9TeMZhJU3HH5NNJ5/t6QXk0H44bCAWnlxb9kEocbGENsjBa1Rgs6yH/VKD4DRjsf/slyyaH+MyZmRvJqUXKvVzcW9aYk9JjNHQZJF27X/wVacX8C1dKEm8Je0gehDORNleOxMHsyPaRZ9w35wo3dDy5naAIaZj1IhxtIkGOzMefy3SgHtBC4CkfSB3fxF9Xk63uvVM+V23y8rb+AJrv58+d4eY+vEO5gme4xvK03Tc1u38cXns=; bm_sz=40129E9E26E82897190AA95134658168~YAAQhPzUF4Z4LjiLAQAA7ckOSBWtm6ALOXNVGDzHvHCWlSMq8Lp/skFZLDVN5iLPnIvS+5uniCHllhhjU1I9mCLzz+nBjnXZblew2h2p4FfAlt53CVcBC8ZuhXQNxSB/SKVTEG0aPMzvYVxBG/gHF3bES1RALD5z5SS6Ob2qPrJWGTCrZgsXorYiBr6Htrshq4cB0gifyqqgbYfBjGWWtDqjh5hOt630kP2KHe/GWqXLUGxVOQrmJLdU5KlT77JIpjOEo/fLwIsg24fDH+JS3eq7OEjqYkWKrF18phn9vpru1A1s~4405315~4407865; sessionId=5ee39dfd88ba43fa9810496740154a77-Mozilla%2F5.0%2C(Macintosh%3B%2CIntel%2CMac%2COS%2CX%2C10_15_7)%2CAppleWebKit%2F537.36%2C(KHTML%2C%2Clike%2CGecko)%2CChrome%2F118.0.0.0%2CSafari%2F537.36; bm_mi=B221B7DC2C96C5EB0BC95F16F82657B7~YAAQZv3UF+JxRB+LAQAA8NQYSBX9fbcjPIYdU++4mfcx80I4bGKCL0/4q43QYuZZ/waILGltMCcdQrwgmF2YQirgVkP5gaDoFJPmbPjRn+qRLHDDVcviiXs8M42kUNxxdoRKvBfjVopcmrr22a8NET4SKZfijqb6srh/MBccq3gUe12kpZG8RmTGT0N8kNuTd19kj9pVuDve0/wUiyC4CHkUWtlpPVqR5jExPiGEXCY+BNgVoW6bI3iz3eBlkSHOznsvBpWXnrRtfYSmWeARP6F9UJitkCYUeArN6eUwx+gnQQTEEoV0/qtVAQ+Y5UaiMZEdtGutZLjHKTBTLE5dPjuZqZN1u0cmv49LTLOhgIU/JfaTLtI6jl7dbRzgDl5376ktPjiVEaSkqN5tnSTJWoTXmEGZyg==~1; bm_sv=8A98A435E18C0C60611FF0505B5CD8F8~YAAQZv3UF2xyRB+LAQAA9OMYSBU2PWIIc+ZHlqCJA47hUABxa6hxgh1Ue7B6yQIU9yHaSDYEbzSSBsZ0aF/3CrUXK/YjgijHiL4shGrtPsLVS4VaAi3KpxKuL4sPzyZHSYwpDCbHVVaBUJuSL6BkenucOfg1S7XKLLlCd8cWdUAhAPJoW32l0YYaZNgk0jVidKSg30yIfeyCnwM6MAmvNCzbJd+PDu3QfoAfNlULYQAWaecWy5gZyvKyuwaZbVi2sas=~1',
+        'device_id': '760c184435f04f5f95492c7bb233e151-1677266113284',
+        'dnt': '1',
+        'origin': 'https://www.sonyliv.com',
+        'referer': 'https://www.sonyliv.com/',
+        'sec-ch-ua': '"Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-site',
+        'security_token': 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2OTc3MjEzMDAsImV4cCI6MTY5OTAxNzMwMCwiYXVkIjoiKi5zb255bGl2LmNvbSIsImlzcyI6IlNvbnlMSVYiLCJzdWIiOiJzb21lQHNldGluZGlhLmNvbSJ9.NMwo6UEuVTMtMG-8rRBC-U5Mgfv8GlibjXCwjJpRn16GfUCu_NOdgFi76DJKm-Oe_W-n43xCzobqwBUF-FN76w4t6gNZLJvLxuA57pcMRf5fRz65UvRcT0kzrSAtCzwd2LVPrMug8JMuUiLTGxN_exTUuOjIhlh7YWO4W-e6QUoraFg8V-e5p3gKtVnMapkAnMyMUzyvM2DhqTNU4C1vG4FC-f0JIdmhl4zbM4Hn2lpCp1_KWKVn9f8FGDEMinn2tuyv2WbywDxYtbCE2Z6o2p_pWYwmx0Xh_Z1T2h-J4h3sKs7uQnwnQOp7gBQhVySnM3TBUDC5PevRqEvrYw2gE6d7DyVsP8oimPFKlsRB50ukiOB9fTL3gh4vtK7ZRMTIbKURnZeuq5iInF9bcSWND7vSiAj2hQYsiHO6BYtJ_Z3vtLMG5VxoEQlHTutsQ7j4hQ0BDjCgF6gOXTBAz_17tdAS35U4WEXUd-SUZNKTY2zVDGXOH2m2xjV947V34xB-d6UlcTjjgDOtkUV_LlvnFflM-vfFqAFkxAwuoLQE49dO3gWaY8Ez_J8cKgCxfCG2GNthAiMWyiGZabaWg2pJRua9AUC7vI-44KiEt6fjJAnqhpz9CIa_r1E_9KrGe6hAiGK1LYhVAQJyROvbXrvALifLr9do6nQNdIdGJosJqgA',
+        'session_id': '5ee39dfd88ba43fa9810496740154a77-Mozilla/5.0,(Macintosh;,Intel,Mac,OS,X,10_15_7),AppleWebKit/537.36,(KHTML,,like,Gecko),Chrome/118.0.0.0,Safari/537.36',
+        'td_client_hints': '{"os_name":"Mac OS","os_version":"10.15.7","device_make":"none","device_model":"none","display_res":"1792","viewport_res":"736","conn_type":"4g","supp_codec":"H264,AV1,AAC","client_throughput":"16000","td_user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36","hdr_decoder":"UNKNOWN","audio_decoder":"STEREO"}',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+        'x-via-device': 'true',
+    }
+
+    params = {
+        'contactId': '61591785',
+    }
+
+    json_data = {
+        'actionType': 'play',
+        'browser': 'Chrome',
+        'deviceId': '760c184435f04f5f95492c7bb233e151-1677266113284',
+        'os': 'Mac OS',
+        'platform': 'web',
+        'hasLAURLEnabled': True,
+        'adsParams': {
+            'Idtype': 'uuid',
+            'rdid': '760c184435f04f5f95492c7bb233e151-1677266113284',
+            'Is_lat': '0',
+            'ppid': 'a94d72edbf87a66f2a4b15771d49163c',
+        },
+    }
+
+    response = requests.post(
+        'https://apiv2.sonyliv.com/AGL/3.8/SR/ENG/WEB/IN/KA/CONTENT/VIDEOURL/VOD/' + numeric_value,
+        params=params,
+        cookies=cookies,
+        headers=headers,
+        json=json_data,
+    )
+    data = response.json()
+    lic_url = data["resultObj"]["LA_Details"]["laURL"]
+    mpd = data["resultObj"]["videoURL"]
+    parsed_url = urllib.parse.urlparse(mpd)
+
+    # New hostname
+    new_hostname = "xstreamdrm.sonyliv.com"
+
+    # Reconstruct the URL with the new hostname
+    new_url = urllib.parse.urlunparse(
+        (parsed_url.scheme, new_hostname, parsed_url.path, parsed_url.params, parsed_url.query, parsed_url.fragment))
+
+    print(lic_url)
+    print(new_url)
+
+    mpd_response = requests.get(new_url)
+    mpd_response.raise_for_status()
+
+    # Search for PSSH within <cenc:pssh> tags using regex
+    response = requests.get(new_url)
+
+    if response.status_code == 200:
+        mpd_content = response.text
+
+        # Define a regular expression to extract the KID value
+        kid_pattern = re.compile(r'cenc:default_KID="([^"]+)"')
+
+        # Search for the KID value in the MPD content
+        match = kid_pattern.search(mpd_content)
+
+        if match:
+            kid_value = match.group(1)
+            print("KID:", kid_value)
+        else:
+            print("KID not found in the MPD content.")
+    else:
+        print("Failed to retrieve the MPD. Status code:", response.status_code)
+
+    import base64
+    import string
+
+    def generate_pssh(kid: str):
+        str1 = '000000387073736800000000edef8ba979d64acea3c827dcd51d21ed000000181210'
+        str3 = '48e3dc959b06'
+        return base64.b64encode(bytes.fromhex(str1 + kid + str3)).decode()
+
+    kid = kid_value.replace('-', '').replace(' ', '')
+    if len(kid) == 32 and all(c in string.hexdigits for c in kid):
+        print('\nPSSH: {}'.format(generate_pssh(kid)))
+        pssh = generate_pssh(kid)
+    else:
+        print('\nInvalid KID')
+
+    headers = {
+        'authority': 'play.airtel.tv',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'en-US,en;q=0.9',
+        'origin': 'https://www.airtelxstream.in',
+        'play-type': 'DASH',
+        'referer': 'https://www.airtelxstream.in/',
+        'request-init-time': '1697729982712',
+        'sec-ch-ua': '"Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'cross-site',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+        'x-atv-ab': '96304:0|100390:1|76965:0|110385:1|129832:0',
+        'x-atv-auth': 'ShXNF/tOgS8T1dKk0H0ZV2vx+9o=',
+        'x-atv-customer': '404-11|BROADBAND|1|11|5',
+        'x-atv-did': 'cec8dbb5-0f40-42fe-9038-3f4409b0919d|BROWSER|WEBOS|10.0|56|56.0.0',
+        'x-atv-segment': 'ATVLITE',
+        'x-atv-stkn': 'ZC8FJTbEkF85TuDk472YY2g3BOmpWVx/IFsORyPHrHLX4b34TxuMICZSSyvccnXz',
+        'x-atv-traceid': '18005fea-31f0-4a78-baf4-009441aa4ad2',
+        'x-atv-utkn': 'XV85j-g60i8Z4G02o0:sFybjGPx7/99vfjdMG+lb7ldN5M=',
+    }
+
+    def WV_Function(pssh, lic_url, cert_b64=None):
+        wvdecrypt = WvDecrypt(init_data_b64=pssh, cert_data_b64=cert_b64, device=deviceconfig.device_android_generic)
+        widevine_license = requests.post(url=lic_url, data=wvdecrypt.get_challenge(), headers=headers)
+        license_b64 = b64encode(widevine_license.content)
+        wvdecrypt.update_license(license_b64)
+        Correct, keyswvdecrypt = wvdecrypt.start_process()
+        if Correct:
+            return Correct, keyswvdecrypt
+
+    correct, keys = WV_Function(pssh, lic_url)
+
+    print()
+
+    for key in keys:
+        ke_ys = ' '.join([f'--key {key}' for key in keys]).split()
+        print('--key ' + key)
+
+        # Build the key_string to make all keys easily copyable
+        key_string = ' '.join([f"--key {key}" for key in keys])
+        subprocess.run([m3u8DL_RE,
+                        '-M', 'format=mkv:muxer=ffmpeg',
+                        '--concurrent-download',
+                        '--log-level', 'INFO',
+
+                        '--save-name', 'video', new_url, *ke_ys])
+        title = f'{showName} - {show_name}'
+
+        try:
+            Path('video.mkv').rename('' + title + '.mkv')
+            print(f'{title}.mkv \ndone!\n')
+
+            indexz += 1
+        except FileNotFoundError:
+            print("[ERROR] no mkv file")
+
+
+import requests
+import subprocess
+from pathlib import Path
+
+index = 1
+m3u8DL_RE = 'N_m3u8DL-RE'
+
+
+def subs(cleaned_numeric_value, cleaned_show_name):
+    global index
+    import requests
+
+    cookies = {
+        'afUserId': '6e27cc43-0311-496a-9a43-89c70c7a4296-p',
+        'WZRK_G': '6165a85d90ca4633a26d2b466f4aa62d',
+        'AKA_A2': 'A',
+        '_abck': '831DFEB23D01C22721BE543E374FE840~0~YAAQhPzUF4N4LjiLAQAA7ckOSApLUWl0TIlupacyK5DWrzQ9ZjMTSziFGCGsW3K0NT+mPqAwfWztOOm0K+5lES2FUeihe1+N97oFFv0v6ldZhlFzYkpe5lvflCxQU9LzUMP9bAz19xXhi7Sb4l5QB7ydCE7KMLyICV2yspqa1aXleO7nLzVR2ZkF9VMf9Y320oluwStnap3HG4SYheAyx592+hwrz4RtEFUXBfzOSOPeKKiYpOeTxc9STZXrpTQV5W4IXOfimtlpvrKwZM/tj2CbPgCZe9C3YI1BWMe1UgHJfu7Lkb/6X3CMf6+/3+E0eeDe7/IslbmpYglxtkFd1Djq9bOYiGsN4THORYxz3E1xnTQbJ9XWB2CjxnM/wqEm6oa3oLWj3O61wvSKwxbkBnYnNctog8ciDdoHKSb6~-1~-1~-1',
+        'ak_bmsc': 'C2F15BA06BC8C08F17D37A41F59C5D64~000000000000000000000000000000~YAAQhPzUF4R4LjiLAQAA7ckOSBUogS5NTQmS9u1W0oeVcMu9w4UD6rYdnyoSJCN2bPp8iMmTZMUWCJHJoRMxyJvRM7hlaZjW87erAtWCQD+E3exiMqDQCiCpJbmwY3tjUyAivIFJVec7axF7DgaTTVxlAYWji9TeMZhJU3HH5NNJ5/t6QXk0H44bCAWnlxb9kEocbGENsjBa1Rgs6yH/VKD4DRjsf/slyyaH+MyZmRvJqUXKvVzcW9aYk9JjNHQZJF27X/wVacX8C1dKEm8Je0gehDORNleOxMHsyPaRZ9w35wo3dDy5naAIaZj1IhxtIkGOzMefy3SgHtBC4CkfSB3fxF9Xk63uvVM+V23y8rb+AJrv58+d4eY+vEO5gme4xvK03Tc1u38cXns=',
+        'bm_sz': '40129E9E26E82897190AA95134658168~YAAQhPzUF4Z4LjiLAQAA7ckOSBWtm6ALOXNVGDzHvHCWlSMq8Lp/skFZLDVN5iLPnIvS+5uniCHllhhjU1I9mCLzz+nBjnXZblew2h2p4FfAlt53CVcBC8ZuhXQNxSB/SKVTEG0aPMzvYVxBG/gHF3bES1RALD5z5SS6Ob2qPrJWGTCrZgsXorYiBr6Htrshq4cB0gifyqqgbYfBjGWWtDqjh5hOt630kP2KHe/GWqXLUGxVOQrmJLdU5KlT77JIpjOEo/fLwIsg24fDH+JS3eq7OEjqYkWKrF18phn9vpru1A1s~4405315~4407865',
+        'sessionId': '5ee39dfd88ba43fa9810496740154a77-Mozilla%2F5.0%2C(Macintosh%3B%2CIntel%2CMac%2COS%2CX%2C10_15_7)%2CAppleWebKit%2F537.36%2C(KHTML%2C%2Clike%2CGecko)%2CChrome%2F118.0.0.0%2CSafari%2F537.36',
+        'bm_mi': 'B221B7DC2C96C5EB0BC95F16F82657B7~YAAQZv3UF+JxRB+LAQAA8NQYSBX9fbcjPIYdU++4mfcx80I4bGKCL0/4q43QYuZZ/waILGltMCcdQrwgmF2YQirgVkP5gaDoFJPmbPjRn+qRLHDDVcviiXs8M42kUNxxdoRKvBfjVopcmrr22a8NET4SKZfijqb6srh/MBccq3gUe12kpZG8RmTGT0N8kNuTd19kj9pVuDve0/wUiyC4CHkUWtlpPVqR5jExPiGEXCY+BNgVoW6bI3iz3eBlkSHOznsvBpWXnrRtfYSmWeARP6F9UJitkCYUeArN6eUwx+gnQQTEEoV0/qtVAQ+Y5UaiMZEdtGutZLjHKTBTLE5dPjuZqZN1u0cmv49LTLOhgIU/JfaTLtI6jl7dbRzgDl5376ktPjiVEaSkqN5tnSTJWoTXmEGZyg==~1',
+        'bm_sv': '8A98A435E18C0C60611FF0505B5CD8F8~YAAQZv3UF2xyRB+LAQAA9OMYSBU2PWIIc+ZHlqCJA47hUABxa6hxgh1Ue7B6yQIU9yHaSDYEbzSSBsZ0aF/3CrUXK/YjgijHiL4shGrtPsLVS4VaAi3KpxKuL4sPzyZHSYwpDCbHVVaBUJuSL6BkenucOfg1S7XKLLlCd8cWdUAhAPJoW32l0YYaZNgk0jVidKSg30yIfeyCnwM6MAmvNCzbJd+PDu3QfoAfNlULYQAWaecWy5gZyvKyuwaZbVi2sas=~1',
+    }
+
+    headers = {
+        'authority': 'apiv2.sonyliv.com',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7',
+        'app_version': '3.5.28',
+        'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxODA3MDMyMDQ0NjE1ODkyMTEiLCJ0b2tlbiI6IlpndXItOVA1Ui0zNG90LThvWnktdFNaWS1RS0oyLVpKIiwiZXhwaXJhdGlvbk1vbWVudCI6IjIwMjQtMDctMzFUMTU6Mzc6MTYuODAxWiIsImlzUHJvZmlsZUNvbXBsZXRlIjp0cnVlLCJzZXNzaW9uQ3JlYXRpb25UaW1lIjoiMjAyMy0wOC0wMVQxNTozNzoxNi44MDFaIiwiY2hhbm5lbFBhcnRuZXJJRCI6Ik1TTUlORCIsImZpcnN0TmFtZSI6IkFyaXNoIiwibW9iaWxlTnVtYmVyIjoiNjUxNDQ3OTEyIiwiZGF0ZU9mQmlydGgiOjc2MjkwODQwMDAwMCwiZ2VuZGVyIjoiTWFsZSIsInByb2ZpbGVQaWMiOiIiLCJzb2NpYWxQcm9maWxlUGljIjoiaHR0cHM6Ly9wbGF0Zm9ybS1sb29rYXNpZGUuZmJzYnguY29tL3BsYXRmb3JtL3Byb2ZpbGVwaWMvP2FzaWQ9MTAyMTQ1NDU0NjQzODM4OTQmaGVpZ2h0PTUwJndpZHRoPTUwJmV4dD0xNjc0NDA1OTYwJmhhc2g9QWVRdkNMRUlucFlGMXFyR3NpcyIsInNvY2lhbExvZ2luSUQiOiJmYWNlYm9va18xMDIxNDU0NTQ2NDM4Mzg5NCIsInNvY2lhbExvZ2luVHlwZSI6IkZhY2Vib29rIiwiaXNFbWFpbFZlcmlmaWVkIjp0cnVlLCJpc01vYmlsZVZlcmlmaWVkIjpmYWxzZSwibGFzdE5hbWUiOiJBbmFuZCIsImVtYWlsIjoiYXJpc2gucmFtc2FyYW5AaG90bWFpbC5ubCIsImlzQ3VzdG9tZXJFbGlnaWJsZUZvckZyZWVUcmlhbCI6ZmFsc2UsImNvbnRhY3RJRCI6IjYxNTkxNzg1IiwiaWF0IjoxNjkwOTA0MjM2LCJleHAiOjE3MjI0NDAyMzZ9.05zmkBaXsTHgIqd9u534Hr8B4WnkB_mb1EuRkjFm6js',
+        'content-type': 'application/json',
+        # 'cookie': 'afUserId=6e27cc43-0311-496a-9a43-89c70c7a4296-p; WZRK_G=6165a85d90ca4633a26d2b466f4aa62d; AKA_A2=A; _abck=831DFEB23D01C22721BE543E374FE840~0~YAAQhPzUF4N4LjiLAQAA7ckOSApLUWl0TIlupacyK5DWrzQ9ZjMTSziFGCGsW3K0NT+mPqAwfWztOOm0K+5lES2FUeihe1+N97oFFv0v6ldZhlFzYkpe5lvflCxQU9LzUMP9bAz19xXhi7Sb4l5QB7ydCE7KMLyICV2yspqa1aXleO7nLzVR2ZkF9VMf9Y320oluwStnap3HG4SYheAyx592+hwrz4RtEFUXBfzOSOPeKKiYpOeTxc9STZXrpTQV5W4IXOfimtlpvrKwZM/tj2CbPgCZe9C3YI1BWMe1UgHJfu7Lkb/6X3CMf6+/3+E0eeDe7/IslbmpYglxtkFd1Djq9bOYiGsN4THORYxz3E1xnTQbJ9XWB2CjxnM/wqEm6oa3oLWj3O61wvSKwxbkBnYnNctog8ciDdoHKSb6~-1~-1~-1; ak_bmsc=C2F15BA06BC8C08F17D37A41F59C5D64~000000000000000000000000000000~YAAQhPzUF4R4LjiLAQAA7ckOSBUogS5NTQmS9u1W0oeVcMu9w4UD6rYdnyoSJCN2bPp8iMmTZMUWCJHJoRMxyJvRM7hlaZjW87erAtWCQD+E3exiMqDQCiCpJbmwY3tjUyAivIFJVec7axF7DgaTTVxlAYWji9TeMZhJU3HH5NNJ5/t6QXk0H44bCAWnlxb9kEocbGENsjBa1Rgs6yH/VKD4DRjsf/slyyaH+MyZmRvJqUXKvVzcW9aYk9JjNHQZJF27X/wVacX8C1dKEm8Je0gehDORNleOxMHsyPaRZ9w35wo3dDy5naAIaZj1IhxtIkGOzMefy3SgHtBC4CkfSB3fxF9Xk63uvVM+V23y8rb+AJrv58+d4eY+vEO5gme4xvK03Tc1u38cXns=; bm_sz=40129E9E26E82897190AA95134658168~YAAQhPzUF4Z4LjiLAQAA7ckOSBWtm6ALOXNVGDzHvHCWlSMq8Lp/skFZLDVN5iLPnIvS+5uniCHllhhjU1I9mCLzz+nBjnXZblew2h2p4FfAlt53CVcBC8ZuhXQNxSB/SKVTEG0aPMzvYVxBG/gHF3bES1RALD5z5SS6Ob2qPrJWGTCrZgsXorYiBr6Htrshq4cB0gifyqqgbYfBjGWWtDqjh5hOt630kP2KHe/GWqXLUGxVOQrmJLdU5KlT77JIpjOEo/fLwIsg24fDH+JS3eq7OEjqYkWKrF18phn9vpru1A1s~4405315~4407865; sessionId=5ee39dfd88ba43fa9810496740154a77-Mozilla%2F5.0%2C(Macintosh%3B%2CIntel%2CMac%2COS%2CX%2C10_15_7)%2CAppleWebKit%2F537.36%2C(KHTML%2C%2Clike%2CGecko)%2CChrome%2F118.0.0.0%2CSafari%2F537.36; bm_mi=B221B7DC2C96C5EB0BC95F16F82657B7~YAAQZv3UF+JxRB+LAQAA8NQYSBX9fbcjPIYdU++4mfcx80I4bGKCL0/4q43QYuZZ/waILGltMCcdQrwgmF2YQirgVkP5gaDoFJPmbPjRn+qRLHDDVcviiXs8M42kUNxxdoRKvBfjVopcmrr22a8NET4SKZfijqb6srh/MBccq3gUe12kpZG8RmTGT0N8kNuTd19kj9pVuDve0/wUiyC4CHkUWtlpPVqR5jExPiGEXCY+BNgVoW6bI3iz3eBlkSHOznsvBpWXnrRtfYSmWeARP6F9UJitkCYUeArN6eUwx+gnQQTEEoV0/qtVAQ+Y5UaiMZEdtGutZLjHKTBTLE5dPjuZqZN1u0cmv49LTLOhgIU/JfaTLtI6jl7dbRzgDl5376ktPjiVEaSkqN5tnSTJWoTXmEGZyg==~1; bm_sv=8A98A435E18C0C60611FF0505B5CD8F8~YAAQZv3UF2xyRB+LAQAA9OMYSBU2PWIIc+ZHlqCJA47hUABxa6hxgh1Ue7B6yQIU9yHaSDYEbzSSBsZ0aF/3CrUXK/YjgijHiL4shGrtPsLVS4VaAi3KpxKuL4sPzyZHSYwpDCbHVVaBUJuSL6BkenucOfg1S7XKLLlCd8cWdUAhAPJoW32l0YYaZNgk0jVidKSg30yIfeyCnwM6MAmvNCzbJd+PDu3QfoAfNlULYQAWaecWy5gZyvKyuwaZbVi2sas=~1',
+        'device_id': '760c184435f04f5f95492c7bb233e151-1677266113284',
+        'dnt': '1',
+        'origin': 'https://www.sonyliv.com',
+        'referer': 'https://www.sonyliv.com/',
+        'sec-ch-ua': '"Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-site',
+        'security_token': 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2OTc3MjEzMDAsImV4cCI6MTY5OTAxNzMwMCwiYXVkIjoiKi5zb255bGl2LmNvbSIsImlzcyI6IlNvbnlMSVYiLCJzdWIiOiJzb21lQHNldGluZGlhLmNvbSJ9.NMwo6UEuVTMtMG-8rRBC-U5Mgfv8GlibjXCwjJpRn16GfUCu_NOdgFi76DJKm-Oe_W-n43xCzobqwBUF-FN76w4t6gNZLJvLxuA57pcMRf5fRz65UvRcT0kzrSAtCzwd2LVPrMug8JMuUiLTGxN_exTUuOjIhlh7YWO4W-e6QUoraFg8V-e5p3gKtVnMapkAnMyMUzyvM2DhqTNU4C1vG4FC-f0JIdmhl4zbM4Hn2lpCp1_KWKVn9f8FGDEMinn2tuyv2WbywDxYtbCE2Z6o2p_pWYwmx0Xh_Z1T2h-J4h3sKs7uQnwnQOp7gBQhVySnM3TBUDC5PevRqEvrYw2gE6d7DyVsP8oimPFKlsRB50ukiOB9fTL3gh4vtK7ZRMTIbKURnZeuq5iInF9bcSWND7vSiAj2hQYsiHO6BYtJ_Z3vtLMG5VxoEQlHTutsQ7j4hQ0BDjCgF6gOXTBAz_17tdAS35U4WEXUd-SUZNKTY2zVDGXOH2m2xjV947V34xB-d6UlcTjjgDOtkUV_LlvnFflM-vfFqAFkxAwuoLQE49dO3gWaY8Ez_J8cKgCxfCG2GNthAiMWyiGZabaWg2pJRua9AUC7vI-44KiEt6fjJAnqhpz9CIa_r1E_9KrGe6hAiGK1LYhVAQJyROvbXrvALifLr9do6nQNdIdGJosJqgA',
+        'session_id': '5ee39dfd88ba43fa9810496740154a77-Mozilla/5.0,(Macintosh;,Intel,Mac,OS,X,10_15_7),AppleWebKit/537.36,(KHTML,,like,Gecko),Chrome/118.0.0.0,Safari/537.36',
+        'td_client_hints': '{"os_name":"Mac OS","os_version":"10.15.7","device_make":"none","device_model":"none","display_res":"1792","viewport_res":"736","conn_type":"4g","supp_codec":"H264,AV1,AAC","client_throughput":"16000","td_user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36","hdr_decoder":"UNKNOWN","audio_decoder":"STEREO"}',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+        'x-via-device': 'true',
+    }
+
+    params = {
+        'contactId': '61591785',
+    }
+
+    json_data = {
+        'actionType': 'play',
+        'browser': 'Chrome',
+        'deviceId': '760c184435f04f5f95492c7bb233e151-1677266113284',
+        'os': 'Mac OS',
+        'platform': 'web',
+        'hasLAURLEnabled': True,
+        'adsParams': {
+            'Idtype': 'uuid',
+            'rdid': '760c184435f04f5f95492c7bb233e151-1677266113284',
+            'Is_lat': '0',
+            'ppid': 'a94d72edbf87a66f2a4b15771d49163c',
+        },
+    }
+
+    response = requests.post(
+        'https://apiv2.sonyliv.com/AGL/3.8/SR/ENG/WEB/IN/KA/CONTENT/VIDEOURL/VOD/' + numeric_value,
+        params=params,
+        cookies=cookies,
+        headers=headers,
+        json=json_data,
+    )
+
+    data = response.json()
+    try:
+        subtitles = data["resultObj"]["subtitle"][0]["subtitleUrl"]
+        title = f'{showName} - {show_name}.srt'
+        command = ['yt-dlp', '-o', title, subtitles]
+        subprocess.run(command, check=True)
+        title = f'{showName} - {show_name}'
+        titles = f'{showName} - {show_name}.srt'
+
+        # Download the subtitle in VTT format
+
+        video_directory = "/Users/swapnilupadhyay/Downloads/WKS-KEYS"
+
+        # Define the video file name (without extension)
+
+        # Combine the directory path and video filename to create the full path
+        input_video = os.path.join(video_directory, f'{title}.mkv')
+
+        # Convert the VTT subtitle to SRT format
+        input_subtitle = titles
+
+        # Input video will be the custom title
+
+        # Output video with the same name as the input video
+        output_video = os.path.splitext(input_video)[0] + "_with_subtitles.mkv"
+
+        # Add SRT subtitle to the MKV video
+        ffmpeg_add_subtitles_command = [
+            "ffmpeg",
+            "-i", input_video,
+            "-i", input_subtitle,
+            "-c:v", "copy",
+            "-c:a", "copy",
+            "-c:s", "srt",
+            output_video
+        ]
+
+        try:
+            subprocess.run(ffmpeg_add_subtitles_command, check=True)
+            print(f"Subtitles added to {input_video}")
+            os.remove(input_video)
+            print(f"Old MKV file '{input_video}' deleted.")
+            os.remove(input_subtitle)
+            print(f"Old srt file '{input_subtitle}' deleted.")
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error adding subtitles: {e}")
+        index += 1
+    except KeyError:
+        # Handle the case where the key doesn't exist
+        print("Subtitles not found.")
+    except IndexError:
+        # Handle the case where the index is out of range
+        print("No subtitles available for this item.")
+    except Exception as e:
+        # Handle other exceptions that may occur
+        print(f"An error occurred: {str(e)}")
+
+
+with open("numeric_value.txt", "r") as numeric_file:
+    numeric_values = numeric_file.read().splitlines()
+
+# Read show names from "show_names.txt"
+with open("show_names.txt", "r") as show_name_file:
+    show_names = show_name_file.read().splitlines()
+
+# Iterate through both lists simultaneously
+for numeric_value, show_name in zip(numeric_values, show_names):
+    # Remove leading/trailing whitespaces and newline characters
+    cleaned_numeric_value = numeric_value.strip()
+    cleaned_show_name = show_name.strip()
+
+    if not check_file(cleaned_show_name):
+        # Call the functions with both values
+        give_link(cleaned_numeric_value, cleaned_show_name)
+        subs(cleaned_numeric_value, cleaned_show_name)
+
+
+
+
