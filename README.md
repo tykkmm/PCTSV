@@ -1,3 +1,9 @@
 # sonylivdownloaded
 download both paid and free videos from sonyliv
-use finaldownloader for all files, run scraper first
+use perfectdownloader for all files
+
+it's features:
+checks if file is downloaded
+renames according to show name 
+downloads subtitles
+
